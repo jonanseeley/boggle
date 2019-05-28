@@ -1,0 +1,8 @@
+<p>
+Welcome to room {{ room.name }}, 
+<ul>
+{% for user in user_list %}
+  <li>{{ user }}</li>
+{% endfor %}
+</ul>
+</p>
