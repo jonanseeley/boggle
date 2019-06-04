@@ -6,3 +6,55 @@ Welcome to room {{ room.name }},
 {% endfor %}
 </ul>
 </p>
+
+<ul id="word-list">
+
+</ul>
+
+<form id="word-submit" method="POST"> 
+  {% csrf_token %}
+  <input type="text" id="word-guess">
+  <input type="submit"/>
+</form>
+
+{% block script %}
+<script src="//code.jquery.com/jquery-3.3.1.min.js"></script>
+<script>
+var loc = window.location
+const formData = $("#word-submit")
+const wordInput = $("#word-guess")
+const wordList = $("#word-list")
+
+var wsProtocol = "ws://"
+if (loc.protocol == "https:") {
+  wsProtocol = "wss://"
+}
+
+var endpoint = wsProtocol + loc.host + loc.pathname
+var socket = new WebSocket(endpoint)
+
+socket.onmessage = function(e) {
+  console.log("message", e)
+  let wordSubmitData = JSON.parse(e.data);
+  wordList.append(`<li>${wordSubmitData.user} submitted ${wordSubmitData.word}</li>`)
+}
+socket.onopen = function(e) {
+  console.log("open", e)
+  formData.submit(function(event) {
+    event.preventDefault()
+    var wordText = wordInput.val()
+    var sendData = {
+      'word': wordText
+    }
+    socket.send(JSON.stringify(sendData))
+    formData[0].reset()
+  })
+}
+socket.onerror = function(e) {
+  console.log("error", e)
+}
+socket.onclose = function(e) {
+  console.log("close", e)
+}
+</script>
+{% endblock script %}
