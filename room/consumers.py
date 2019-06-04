@@ -1,47 +1,47 @@
-import asyncio
 import json
 from django.contrib.auth import get_user_model
-from channels.consumer import AsyncConsumer
-from channels.db import database_sync_to_async
+from channels.consumer import SyncConsumer
 import channels
+from asgiref.sync import async_to_sync
 
 from .models import Room
 
-class RoomConsumer(AsyncConsumer):
-    async def websocket_connect(self, event):
+class RoomConsumer(SyncConsumer):
+    def websocket_connect(self, event):
         print("connected", event)
         room_name = self.scope['url_route']['kwargs']['name']
-        user = self.scope['session'].get('username' or None)
-        self.user = user
-
-        room = await self.get_room(room_name, user)
-        self.room = room
         self.room_name = room_name
+        user = self.scope['session'].get('username' or None)
+        if user == None:
+            user = "Anonymous"
+        self.user = user
+        room = self.get_room(room_name)
+        self.room = room
 
-        await self.channel_layer.group_add(
+        async_to_sync(self.channel_layer.group_add)(
             room_name,
             self.channel_name
         )
-        await self.send({
+        self.send({
             "type": "websocket.accept"
         })
-        await self.add_user_to_room()
+        self.add_user_to_room()
         new_event = {
             "type": "user_changes",
             "text": json.dumps({"type": "user_changes", "users": self.room.users})
         }
-        await self.channel_layer.group_send(
+        async_to_sync(self.channel_layer.group_send)(
             self.room_name,
             new_event
         )
 
-    async def user_changes(self, event):
-        await self.send({
+    def user_changes(self, event):
+        self.send({
             "type": "websocket.send",
             "text": event["text"]
         })
 
-    async def websocket_receive(self, event):
+    def websocket_receive(self, event):
         print("receive", event)
         front_data = event.get("text" or None)
         if front_data is not None:
@@ -57,7 +57,7 @@ class RoomConsumer(AsyncConsumer):
                     "type": "word_submission",
                     "text": json.dumps(myResponse)
                 }
-                await self.channel_layer.group_send(
+                async_to_sync(self.channel_layer.group_send)(
                     self.room_name,
                     new_event
                 )
@@ -65,29 +65,28 @@ class RoomConsumer(AsyncConsumer):
                 connected = loaded_data.get("text" or None)
                 if connected != None:
                     print(f"{self.user} has joined!")
-
-    async def word_submission(self, event):
-        await self.send({
+                    
+    def word_submission(self, event):
+        self.send({
             "type": "websocket.send",
             "text": event['text']
         })
 
-    async def websocket_disconnect(self, event):
-        await self.remove_user_from_room()
+    def websocket_disconnect(self, event):
+        self.remove_user_from_room()
         new_event = {
             "type": "user_changes",
             "text": json.dumps({"type": "user_changes", "users": self.room.users})
         }
-        await self.channel_layer.group_send(
+        async_to_sync(self.channel_layer.group_send)(
             self.room_name,
             new_event
         )
         print("disconnected", event)
         raise channels.exceptions.StopConsumer
 
-    @database_sync_to_async
     # Grab room and append newcomer to the user list
-    def get_room(self, room_name, username):
+    def get_room(self, room_name):
         try:
             room = Room.objects.get(name=room_name)
         except Room.DoesNotExist:
@@ -95,20 +94,24 @@ class RoomConsumer(AsyncConsumer):
             room.save()
         return room
 
-    @database_sync_to_async
     def add_user_to_room(self):
+        print(f"{self.user} just joined the room!")
+        self.room = self.get_room(self.room_name)
+        print(self.room.users)
         users = json.loads(self.room.users)
         users.append(self.user)
-        self.room.users = json.dumps(users)
+        print(users)
+        self.room.users = json.dumps(sorted(users))
         self.room.save()
+        print(self.room.users)
 
-    @database_sync_to_async
     def remove_user_from_room(self):
-        users = json.loads(self.room.users)
         print(f"{self.user} just left the room!")
-        print(users)
+        self.room = self.get_room(self.room_name)
+        print(self.room.users)
+        users = json.loads(self.room.users)
         users.remove(self.user)
-        print(users)
-        self.room.users = json.dumps(users)
+        self.room.users = json.dumps(sorted(users))
         self.room.save()
+        print(self.room.users)
 
