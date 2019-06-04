@@ -21,7 +21,3 @@ class Room(models.Model):
     name  = models.CharField(max_length=100, primary_key=True)
     # users in the room 
     users = models.CharField(max_length=1000)
-    # time when the game will end
-    end_time      = models.DateTimeField()
-    # all of the words the users have guessed
-    words_guessed = models.CharField(max_length=10000)

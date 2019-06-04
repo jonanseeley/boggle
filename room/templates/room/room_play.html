@@ -1,6 +1,6 @@
 <p>
 Welcome to room {{ room.name }}, 
-<ul>
+<ul id="user-list">
 {% for user in user_list %}
   <li>{{ user }}</li>
 {% endfor %}
@@ -20,10 +20,11 @@ Welcome to room {{ room.name }},
 {% block script %}
 <script src="//code.jquery.com/jquery-3.3.1.min.js"></script>
 <script>
-var loc = window.location
+const loc = window.location
 const formData = $("#word-submit")
 const wordInput = $("#word-guess")
 const wordList = $("#word-list")
+const userList = $("#user-list")
 
 var wsProtocol = "ws://"
 if (loc.protocol == "https:") {
@@ -33,13 +34,32 @@ if (loc.protocol == "https:") {
 var endpoint = wsProtocol + loc.host + loc.pathname
 var socket = new WebSocket(endpoint)
 
+function updateUserList(users) {
+  userList.html("");
+  for (let i = 0; i < users.length; i++) {
+    let listItem = document.createElement('li');
+    listItem.innerHTML = users[i];
+    userList.append(listItem);
+  }
+}
+
 socket.onmessage = function(e) {
   console.log("message", e)
-  let wordSubmitData = JSON.parse(e.data);
-  wordList.append(`<li>${wordSubmitData.user} submitted ${wordSubmitData.word}</li>`)
+  let socketData = JSON.parse(e.data);
+  switch(socketData.type) {
+    case "new_word":
+      wordList.append(`<li>${socketData.word} via ${socketData.user}</li>`)
+      break;
+    case "user_changes":
+      updateUserList(JSON.parse(socketData.users));
+      break;
+    default:
+      console.log("unexpected message type!", e);
+  }
 }
 socket.onopen = function(e) {
   console.log("open", e)
+
   formData.submit(function(event) {
     event.preventDefault()
     var wordText = wordInput.val()

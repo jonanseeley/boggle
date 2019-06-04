@@ -19,13 +19,10 @@ def room_create_view(request):
 
 def room_play_view(request, name):
     username = request.session.get('username' or None)
-    users = [username]
+    users = []
     try:
         room = Room.objects.get(name=name)
         users = json.loads(room.users)
-        users.append(username)
-        room.users = json.dumps(users)
-        room.save()
     except Room.DoesNotExist:
         room = Room(name=name, users=json.dumps(users))
         room.save()
