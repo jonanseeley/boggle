@@ -38,7 +38,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'channels',
     'room',
-    'game',
 ]
 
 MIDDLEWARE = [

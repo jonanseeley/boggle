@@ -26,6 +26,6 @@ def room_play_view(request, name):
     except Room.DoesNotExist:
         room = Room(name=name, users=json.dumps(users))
         room.save()
-    context = {'room': room, 'user_list': users}
+    context = {'room': room, 'user_list': users, 'board': [["A"]*5]*5}
     return render(request, "room/room_play.html", context)
 

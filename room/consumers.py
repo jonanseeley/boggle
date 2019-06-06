@@ -1,12 +1,17 @@
 import json
+import datetime
+
+import channels
 from django.contrib.auth import get_user_model
 from channels.consumer import SyncConsumer
-import channels
 from asgiref.sync import async_to_sync
 
 from .models import Room
+from .utils import BoggleGame
 
 class RoomConsumer(SyncConsumer):
+    boggleGame = BoggleGame()
+
     def websocket_connect(self, event):
         print("connected", event)
         room_name = self.scope['url_route']['kwargs']['name']
@@ -46,8 +51,8 @@ class RoomConsumer(SyncConsumer):
         front_data = event.get("text" or None)
         if front_data is not None:
             loaded_data = json.loads(front_data)
-            word = loaded_data.get("word" or None)
-            if word != None:
+            if "word" in loaded_data:
+                word = loaded_data.get("word")
                 myResponse = {
                     "type": "new_word",
                     "word": word,
@@ -61,12 +66,28 @@ class RoomConsumer(SyncConsumer):
                     self.room_name,
                     new_event
                 )
-            else:
-                connected = loaded_data.get("text" or None)
-                if connected != None:
-                    print(f"{self.user} has joined!")
+            elif "new_game" in loaded_data:
+                boggleGame = BoggleGame()
+                myResponse = {
+                    "type": "new_game",
+                    "board": json.dumps(boggleGame.display_board)
+                }
+                new_event = {
+                    "type": "new_game",
+                    "text": json.dumps(myResponse)
+                }
+                async_to_sync(self.channel_layer.group_send)(
+                    self.room_name,
+                    new_event
+                )
                     
     def word_submission(self, event):
+        self.send({
+            "type": "websocket.send",
+            "text": event['text']
+        })
+
+    def new_game(self, event):
         self.send({
             "type": "websocket.send",
             "text": event['text']
@@ -82,6 +103,7 @@ class RoomConsumer(SyncConsumer):
             self.room_name,
             new_event
         )
+        async_to_sync(self.channel_layer.group_discard)(self.room_name, self.channel_name)
         print("disconnected", event)
         raise channels.exceptions.StopConsumer
 
