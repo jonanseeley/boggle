@@ -1,12 +1,12 @@
 import json
-import datetime
+import time
 
 import channels
 from django.contrib.auth import get_user_model
 from channels.consumer import SyncConsumer
 from asgiref.sync import async_to_sync
 
-from .models import Room
+from .models import Room, Game
 from .utils import BoggleGame
 
 class RoomConsumer(SyncConsumer):
@@ -67,10 +67,12 @@ class RoomConsumer(SyncConsumer):
                     new_event
                 )
             elif "new_game" in loaded_data:
+                self.game = Game()
                 boggleGame = BoggleGame()
                 myResponse = {
                     "type": "new_game",
-                    "board": json.dumps(boggleGame.display_board)
+                    "board": json.dumps(boggleGame.display_board),
+                    "end_time": int(time.time() + (3 * 60) + 1)
                 }
                 new_event = {
                     "type": "new_game",

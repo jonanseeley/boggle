@@ -15,7 +15,7 @@ Welcome to room {{ room.name }},
 <div id="game">
     <div id="left-side">
         <p>Time Left:</p>
-        <p id="time">3:00</p>
+        <p id="timer">3:00</p>
     </div>
     <table class="grid">
       {% for row in board %}
@@ -49,6 +49,7 @@ const wordInput = $("#word-guess")
 const wordList = $("#word-list")
 const userList = $("#user-list")
 const newGame = $("#new-game")
+const timer = $("#timer")
 
 var wsProtocol = "ws://"
 if (loc.protocol == "https:") {
@@ -59,7 +60,7 @@ var endpoint = wsProtocol + loc.host + loc.pathname
 var socket = new WebSocket(endpoint)
 
 newGame.click(() => {
-  socket.send(JSON.stringify({'new_game': 'temp'}))
+  socket.send(JSON.stringify({'new_game': 'new_game'}))
 });
 
 function updateUserList(users) {
@@ -83,6 +84,7 @@ socket.onmessage = function(e) {
       break;
     case "new_game":
       let board = JSON.parse(socketData.board);
+      let utime = socketData.end_time;
       console.log(board);
       for (let i = 0; i < board.length; i++) {
         for (let j = 0; j < board[i].length; j++) {
@@ -91,6 +93,18 @@ socket.onmessage = function(e) {
           block.html(board[i][j]);
         }
       }
+      let x = setInterval(function() {
+        let deadline = utime;
+        let now = new Date().getTime()/1000;
+        let delta = deadline - now;
+        let seconds = Math.floor(delta);
+        console.log(`deadline: ${deadline}, now: ${now}`)
+        timer.html(seconds);
+        if (delta <= 0) {
+          clearInterval(x);
+          timer.html("0");
+        }
+      }, 1000);
       break;
     default:
       console.log("unexpected message type!", e);
