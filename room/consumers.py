@@ -97,6 +97,10 @@ class RoomConsumer(SyncConsumer):
 
     def websocket_disconnect(self, event):
         self.remove_user_from_room()
+        async_to_sync(self.channel_layer.group_discard)(self.room_name, self.channel_name)
+        raise channels.exceptions.StopConsumer
+
+    def notify_of_updated_userlist(self):
         new_event = {
             "type": "user_changes",
             "text": json.dumps({"type": "user_changes", "users": self.room.users})
@@ -105,9 +109,6 @@ class RoomConsumer(SyncConsumer):
             self.room_name,
             new_event
         )
-        async_to_sync(self.channel_layer.group_discard)(self.room_name, self.channel_name)
-        print("disconnected", event)
-        raise channels.exceptions.StopConsumer
 
     # Grab room and append newcomer to the user list
     def get_room(self, room_name):
@@ -121,21 +122,23 @@ class RoomConsumer(SyncConsumer):
     def add_user_to_room(self):
         print(f"{self.user} just joined the room!")
         self.room = self.get_room(self.room_name)
-        print(self.room.users)
         users = json.loads(self.room.users)
+        if (len(users) == 0):
+            self.room.host = self.user
         users.append(self.user)
-        print(users)
         self.room.users = json.dumps(sorted(users))
         self.room.save()
-        print(self.room.users)
+        self.notify_of_updated_userlist()
 
     def remove_user_from_room(self):
         print(f"{self.user} just left the room!")
         self.room = self.get_room(self.room_name)
-        print(self.room.users)
         users = json.loads(self.room.users)
         users.remove(self.user)
+        if self.room.host == self.user and len(users) > 0:
+            self.room.host = users[0]
         self.room.users = json.dumps(sorted(users))
         self.room.save()
-        print(self.room.users)
+        self.notify_of_updated_userlist()
+
 

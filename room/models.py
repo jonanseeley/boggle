@@ -5,6 +5,8 @@ class Room(models.Model):
     name  = models.CharField(max_length=100, primary_key=True)
     # users in the room 
     users = models.CharField(max_length=1000)
+    # host of the room
+    host = models.CharField(max_length=100, null=True)
 
 class Game(models.Model):
     # room this game is a part of
