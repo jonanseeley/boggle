@@ -53,6 +53,7 @@ class RoomConsumer(SyncConsumer):
             loaded_data = json.loads(front_data)
             if "word" in loaded_data:
                 word = loaded_data.get("word")
+                self.game.submitted_words
                 myResponse = {
                     "type": "new_word",
                     "word": word,
@@ -67,21 +68,25 @@ class RoomConsumer(SyncConsumer):
                     new_event
                 )
             elif "new_game" in loaded_data:
-                self.game = Game()
-                boggleGame = BoggleGame()
-                myResponse = {
-                    "type": "new_game",
-                    "board": json.dumps(boggleGame.display_board),
-                    "end_time": int(time.time() + (3 * 60) + 1)
-                }
-                new_event = {
-                    "type": "new_game",
-                    "text": json.dumps(myResponse)
-                }
-                async_to_sync(self.channel_layer.group_send)(
-                    self.room_name,
-                    new_event
-                )
+                if (not hasattr(self.room, 'game') or 
+                        self.room.game.end_time < time.time()):
+                    self.game = Game(room=self.room, 
+                            end_time=int(time.time() + (3 * 60) + 1))
+                    print("New game created")
+                    boggleGame = BoggleGame()
+                    myResponse = {
+                        "type": "new_game",
+                        "board": json.dumps(boggleGame.display_board),
+                        "end_time": self.game.end_time
+                    }
+                    new_event = {
+                        "type": "new_game",
+                        "text": json.dumps(myResponse)
+                    }
+                    async_to_sync(self.channel_layer.group_send) (
+                        self.room_name,
+                        new_event
+                    )
                     
     def word_submission(self, event):
         self.send({
@@ -110,7 +115,7 @@ class RoomConsumer(SyncConsumer):
             new_event
         )
 
-    # Grab room and append newcomer to the user list
+    # Return room if it exists or create a new one with empty user list
     def get_room(self, room_name):
         try:
             room = Room.objects.get(name=room_name)
@@ -129,6 +134,7 @@ class RoomConsumer(SyncConsumer):
         self.room.users = json.dumps(sorted(users))
         self.room.save()
         self.notify_of_updated_userlist()
+        print(f"{self.room.host} is the host")
 
     def remove_user_from_room(self):
         print(f"{self.user} just left the room!")
@@ -140,5 +146,6 @@ class RoomConsumer(SyncConsumer):
         self.room.users = json.dumps(sorted(users))
         self.room.save()
         self.notify_of_updated_userlist()
+        print(f"{self.room.host} is the host")
 
 

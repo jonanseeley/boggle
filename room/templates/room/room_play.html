@@ -72,6 +72,14 @@ function updateUserList(users) {
   }
 }
 
+function formatTimer(seconds) {
+  let minutes = Math.floor(seconds/60);
+  seconds %= 60;
+  if (seconds > 9)
+    return (`${minutes}:${seconds}`)
+  return (`${minutes}:0${seconds}`)
+}
+
 socket.onmessage = function(e) {
   console.log("message", e)
   let socketData = JSON.parse(e.data);
@@ -99,10 +107,10 @@ socket.onmessage = function(e) {
         let delta = deadline - now;
         let seconds = Math.floor(delta);
         console.log(`deadline: ${deadline}, now: ${now}`)
-        timer.html(seconds);
+        timer.html(formatTimer(seconds));
         if (delta <= 0) {
           clearInterval(x);
-          timer.html("0");
+          timer.html(formatTimer(0));
         }
       }, 1000);
       break;
