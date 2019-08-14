@@ -7,9 +7,6 @@ Welcome to room {{ room.name }},
 </ul>
 </p>
 
-<ul id="word-list">
-
-</ul>
 
 
 <div id="game">
@@ -30,7 +27,7 @@ Welcome to room {{ room.name }},
         <p>Score:</p>
         <p id="score">0</p>
         <p>Correct Words:</p>
-        <p id="guessed-words"></p>
+        <ul id="word-list"></ul>
         <form id="word-submit" method="POST"> 
           {% csrf_token %}
           <input type="text" id="word-guess">
@@ -60,7 +57,7 @@ var endpoint = wsProtocol + loc.host + loc.pathname
 var socket = new WebSocket(endpoint)
 
 newGame.click(() => {
-  socket.send(JSON.stringify({'new_game': 'new_game'}))
+  socket.send(JSON.stringify({'command': 'new_game'}))
 });
 
 function updateUserList(users) {
@@ -83,9 +80,12 @@ function formatTimer(seconds) {
 socket.onmessage = function(e) {
   console.log("message", e)
   let socketData = JSON.parse(e.data);
-  switch(socketData.type) {
-    case "new_word":
-      wordList.append(`<li>${socketData.word} via ${socketData.user}</li>`)
+  switch(socketData.msg_type) {
+    case "valid_word":
+      wordList.append(`<li>${socketData.word}</li>`)
+      break;
+    case "invalid_word":
+      console.log(`${socketData.word} is not a valid word for this board!`)
       break;
     case "user_changes":
       updateUserList(JSON.parse(socketData.users));
@@ -93,24 +93,32 @@ socket.onmessage = function(e) {
     case "new_game":
       let board = JSON.parse(socketData.board);
       let utime = socketData.end_time;
-      console.log(board);
-      for (let i = 0; i < board.length; i++) {
-        for (let j = 0; j < board[i].length; j++) {
-          let block = $(`#block-${i}-${j}`)
-          console.log(block.html);
-          block.html(board[i][j]);
-        }
+      // Draw words
+      let words = JSON.parse(socketData.words);
+      console.log(words)
+      wordList.html("");
+      for (let word of words) {
+        wordList.append(`<li>${word}</li>`)
       }
+      // Draw board
+      for (let i = 0; i < board.length; i++) {
+        let row = Math.floor(i / 5)
+        let col = i % 5
+        let block = $(`#block-${row}-${col}`)
+        block.html(board[i]);
+      }
+      // Run timer
       let x = setInterval(function() {
         let deadline = utime;
         let now = new Date().getTime()/1000;
         let delta = deadline - now;
         let seconds = Math.floor(delta);
-        console.log(`deadline: ${deadline}, now: ${now}`)
         timer.html(formatTimer(seconds));
         if (delta <= 0) {
           clearInterval(x);
           timer.html(formatTimer(0));
+          // If user is the host...
+          socket.send(JSON.stringify({'command': 'game_finished'}))
         }
       }, 1000);
       break;
@@ -125,6 +133,7 @@ socket.onopen = function(e) {
     event.preventDefault()
     var wordText = wordInput.val()
     var sendData = {
+      'command': 'submitted_word',
       'word': wordText
     }
     socket.send(JSON.stringify(sendData))
