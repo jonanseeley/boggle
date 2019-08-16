@@ -107,7 +107,7 @@ def check_word(board, word):
     return valid
 
 
-def get_word_score(word):
+def word_score(word):
     if len(word) > 7:
         return 11
     elif len(word) > 6:

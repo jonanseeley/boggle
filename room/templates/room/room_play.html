@@ -24,8 +24,11 @@ Welcome to room {{ room.name }},
       {% endfor %}
     </table>
     <div id="right-side">
-        <p>Score:</p>
-        <p id="score">0</p>
+        <p>Scores:</p>
+        <table id="scores-list">
+        </table>
+        <!--<p>Score:</p>
+        <p id="score">0</p>-->
         <p>Correct Words:</p>
         <ul id="word-list"></ul>
         <form id="word-submit" method="POST"> 
@@ -45,6 +48,7 @@ const formData = $("#word-submit")
 const wordInput = $("#word-guess")
 const wordList = $("#word-list")
 const userList = $("#user-list")
+const scoresList = $("#scores-list")
 const newGame = $("#new-game")
 const timer = $("#timer")
 
@@ -69,6 +73,37 @@ function updateUserList(users) {
   }
 }
 
+function updateScoresList(scores) {
+  scoresList.html("");
+  console.log(scores)
+  for (let user in scores) {
+    console.log(user)
+    let userRow = document.createElement('tr');
+    let nameCell = document.createElement('td');
+    let scoreCell = document.createElement('td');
+    nameCell.innerHTML = user;
+    scoreCell.innerHTML = scores[user];
+    userRow.append(nameCell);
+    userRow.append(scoreCell);
+    scoresList.append(userRow);
+  }
+}
+
+function updateWordList(rejected_words, accepted_words) {
+  wordList.html("")
+  for (word of rejected_words) {
+    let wordItem = document.createElement('li');
+    wordItem.innerHTML = word
+    wordItem.style.textDecoration = "line-through"
+    wordList.append(wordItem)
+  }
+  for (word of accepted_words) {
+    let wordItem = document.createElement('li');
+    wordItem.innerHTML = word
+    wordList.append(wordItem)
+  }
+}
+
 function formatTimer(seconds) {
   let minutes = Math.floor(seconds/60);
   seconds %= 60;
@@ -85,10 +120,16 @@ socket.onmessage = function(e) {
       wordList.append(`<li>${socketData.word}</li>`)
       break;
     case "invalid_word":
-      console.log(`${socketData.word} is not a valid word for this board!`)
+      console.log(`${socketData.reason}`)
       break;
     case "user_changes":
-      updateUserList(JSON.parse(socketData.users));
+      updateUserList(JSON.parse(socketData.users))
+      break;
+    case "score_update":
+      console.log(socketData.scores)
+      updateScoresList(JSON.parse(socketData.scores))
+      updateWordList(JSON.parse(socketData.rejected_words), 
+            JSON.parse(socketData.accepted_words))
       break;
     case "new_game":
       let board = JSON.parse(socketData.board);
@@ -97,6 +138,7 @@ socket.onmessage = function(e) {
       let words = JSON.parse(socketData.words);
       console.log(words)
       wordList.html("");
+      updateScoresList(JSON.parse(socketData.scores))
       for (let word of words) {
         wordList.append(`<li>${word}</li>`)
       }
