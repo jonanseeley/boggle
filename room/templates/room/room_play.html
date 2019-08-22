@@ -124,6 +124,7 @@ socket.onmessage = function(e) {
       break;
     case "user_changes":
       updateUserList(JSON.parse(socketData.users))
+      if JSONgT
       break;
     case "score_update":
       console.log(socketData.scores)
