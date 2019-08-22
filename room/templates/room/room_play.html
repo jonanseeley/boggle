@@ -7,8 +7,6 @@ Welcome to room {{ room.name }},
 </ul>
 </p>
 
-
-
 <div id="game">
     <div id="left-side">
         <p>Time Left:</p>
@@ -124,7 +122,9 @@ socket.onmessage = function(e) {
       break;
     case "user_changes":
       updateUserList(JSON.parse(socketData.users))
-      if JSONgT
+      if (!JSON.parse(socketData.host)) {
+        newGame.css("display", "none")
+      }
       break;
     case "score_update":
       console.log(socketData.scores)

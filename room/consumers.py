@@ -73,8 +73,7 @@ class RoomConsumer(JsonWebsocketConsumer):
             print("New game created")
             if self.game:
                 self.game.delete()
-            #deadline = int(time.time() + (3 * 60) + 1)
-            deadline = int(time.time() + 31)
+            deadline = int(time.time() + (3 * 60) + 1)
             board = json.dumps(generate_board())
             submitted_words = {user: [] for user in json.loads(self.room.users)}
             self.game = Game(room=self.room, end_time=str(deadline), 
